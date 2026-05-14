@@ -86,7 +86,7 @@ async def async_setup_entry(
 class CounterspellSensor(RestoreEntity, SensorEntity):
     """A Counterspell sensor."""
 
-    _attr_entity_category = EntityCategory.CONFIG
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_has_entity_name = True
     _attr_should_poll = False
 
@@ -107,12 +107,15 @@ class CounterspellSensor(RestoreEntity, SensorEntity):
         self._base_name = name
         self._period = period
         self._measure_type = measure_type
-        self._attr_device_info = device_info
         self._source_binary_sensor = source_binary_sensor
         self._source_template = source_template
         
-        self._attr_name = f"{period} {measure_type}"
+        self._attr_name = f"{period.capitalize()} {measure_type.capitalize()}"
         self._attr_unique_id = f"{entry.entry_id}_{period}_{measure_type}"
+        self._attr_device_info = device_info or DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name=name,
+        )
         
         if measure_type == "count":
             self._attr_state_class = SensorStateClass.TOTAL_INCREASING

@@ -35,22 +35,25 @@ class CounterspellConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_NAME): str,
-                    vol.Optional(CONF_SOURCE_BINARY_SENSOR): selector.EntitySelector(
-                        selector.EntitySelectorConfig(domain="binary_sensor")
-                    ),
-                    vol.Optional(CONF_SOURCE_TEMPLATE): selector.TemplateSelector(),
-                    vol.Required(CONF_PERIODS, default=PERIODS): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=PERIODS,
-                            multiple=True,
-                            mode=selector.SelectSelectorMode.LIST,
-                            translation_key="periods",
-                        )
-                    ),
-                }
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(
+                    {
+                        vol.Required(CONF_NAME): selector.TextSelector(),
+                        vol.Optional(CONF_SOURCE_BINARY_SENSOR): selector.EntitySelector(
+                            selector.EntitySelectorConfig(domain="binary_sensor")
+                        ),
+                        vol.Optional(CONF_SOURCE_TEMPLATE): selector.TemplateSelector(),
+                        vol.Required(CONF_PERIODS, default=PERIODS): selector.SelectSelector(
+                            selector.SelectSelectorConfig(
+                                options=PERIODS,
+                                multiple=True,
+                                mode=selector.SelectSelectorMode.LIST,
+                                translation_key="periods",
+                            )
+                        ),
+                    }
+                ),
+                user_input or {CONF_PERIODS: PERIODS},
             ),
             errors=errors,
         )
