@@ -35,7 +35,7 @@ async def test_sensors(hass: HomeAssistant, freezer) -> None:
     count_entity_id = "sensor.test_counter_total_count"
     duration_entity_id = "sensor.test_counter_total_active_duration"
     
-    assert float(hass.states.get(count_entity_id).state) == 0.0
+    assert hass.states.get(count_entity_id).state == "0"
     assert float(hass.states.get(duration_entity_id).state) == 0.0
     
     # Check friendly name
@@ -54,7 +54,7 @@ async def test_sensors(hass: HomeAssistant, freezer) -> None:
     await hass.async_block_till_done()
 
     # Count should be 1
-    assert float(hass.states.get(count_entity_id).state) == 1.0
+    assert hass.states.get(count_entity_id).state == "1"
     
     # Wait 10 seconds
     freezer.tick(timedelta(seconds=10))
@@ -65,14 +65,52 @@ async def test_sensors(hass: HomeAssistant, freezer) -> None:
     # Duration should be 10
     assert float(hass.states.get(duration_entity_id).state) == 10.0
     # Count should still be 1
-    assert float(hass.states.get(count_entity_id).state) == 1.0
+    assert hass.states.get(count_entity_id).state == "1"
 
     # Turn it on again
     hass.states.async_set("binary_sensor.test_source", STATE_ON)
     await hass.async_block_till_done()
     
     # Count should be 2
-    assert float(hass.states.get(count_entity_id).state) == 2.0
+    assert hass.states.get(count_entity_id).state == "2"
+
+async def test_sensor_device_attachment(hass: HomeAssistant) -> None:
+    """Test that the sensor correctly attaches to a device if provided."""
+    from homeassistant.helpers import device_registry as dr
+    
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "name": "Attached Sensor",
+            "source_template": "{{ true }}",
+            "periods": ["total"],
+        },
+        entry_id="test_device_attachment",
+    )
+    entry.add_to_hass(hass)
+
+    dev_reg = dr.async_get(hass)
+    device = dev_reg.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={("test", "test_device")},
+        name="Test Device",
+    )
+    
+    # Update entry data with device_id
+    hass.config_entries.async_update_entry(entry, data={**entry.data, "device_id": device.id})
+    
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    
+    ent_reg = er.async_get(hass)
+    entity_id = ent_reg.async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_total_count")
+    assert entity_id is not None
+    
+    state = hass.states.get(entity_id)
+    assert state is not None
+    
+    reg_entry = ent_reg.async_get(entity_id)
+    assert reg_entry.device_id == device.id
 
 async def test_template_sensor(hass: HomeAssistant) -> None:
     """Test sensor behavior with template source."""
@@ -94,14 +132,14 @@ async def test_template_sensor(hass: HomeAssistant) -> None:
 
     count_entity_id = "sensor.template_counter_total_count"
     
-    assert float(hass.states.get(count_entity_id).state) == 0.0
+    assert hass.states.get(count_entity_id).state == "0"
 
     # Turn it on
     hass.states.async_set("input_boolean.test", STATE_ON)
     await hass.async_block_till_done()
 
     # Count should be 1
-    assert float(hass.states.get(count_entity_id).state) == 1.0
+    assert hass.states.get(count_entity_id).state == "1"
 
 async def test_period_reset(hass: HomeAssistant, freezer) -> None:
     """Test sensor behavior with daily reset."""
@@ -129,20 +167,20 @@ async def test_period_reset(hass: HomeAssistant, freezer) -> None:
     # Turn it on
     hass.states.async_set("binary_sensor.test_source", STATE_ON)
     await hass.async_block_till_done()
-    assert float(hass.states.get(count_entity_id).state) == 1.0
+    assert hass.states.get(count_entity_id).state == "1"
 
     # Move to next day
     freezer.tick(timedelta(seconds=20))
     
     # State should still be 1 because it's still ON and it was active during transition
-    assert float(hass.states.get(count_entity_id).state) == 1.0
+    assert hass.states.get(count_entity_id).state == "1"
     
     # Turn it off
     hass.states.async_set("binary_sensor.test_source", STATE_OFF)
     await hass.async_block_till_done()
-    assert float(hass.states.get(count_entity_id).state) == 1.0
+    assert hass.states.get(count_entity_id).state == "1"
     
     # Turn it on again (second time today)
     hass.states.async_set("binary_sensor.test_source", STATE_ON)
     await hass.async_block_till_done()
-    assert float(hass.states.get(count_entity_id).state) == 2.0
+    assert hass.states.get(count_entity_id).state == "2"

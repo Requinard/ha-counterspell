@@ -13,6 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     CONF_NAME,
+    CONF_DEVICE_ID,
     EntityCategory,
     UnitOfTime,
 )
@@ -67,6 +68,15 @@ async def async_setup_entry(
                 device_info = DeviceInfo(
                     identifiers=device.identifiers,
                 )
+    
+    device_id = config.get(CONF_DEVICE_ID)
+    if device_id:
+        dev_reg = dr.async_get(hass)
+        device = dev_reg.async_get(device_id)
+        if device:
+            device_info = DeviceInfo(
+                identifiers=device.identifiers,
+            )
 
     entities = []
     for period in periods:
@@ -136,13 +146,14 @@ class CounterspellSensor(RestoreEntity, SensorEntity):
         if measure_type == "count":
             self._attr_state_class = SensorStateClass.TOTAL_INCREASING
             self._attr_icon = "mdi:counter"
+            self._attr_suggested_display_precision = 0
         else:
             self._attr_device_class = SensorDeviceClass.DURATION
             self._attr_native_unit_of_measurement = UnitOfTime.SECONDS
             self._attr_state_class = SensorStateClass.TOTAL_INCREASING
             self._attr_icon = "mdi:timer-outline"
 
-        self._state = 0.0
+        self._state = 0 if measure_type == "count" else 0.0
         self._last_reset = dt_util.now()
         self._active = False
         self._active_since: datetime | None = None
@@ -154,9 +165,12 @@ class CounterspellSensor(RestoreEntity, SensorEntity):
         state = await self.async_get_last_state()
         if state:
             try:
-                self._state = float(state.state)
+                if self._measure_type == "count":
+                    self._state = int(float(state.state))
+                else:
+                    self._state = float(state.state)
             except ValueError:
-                self._state = 0.0
+                self._state = 0 if self._measure_type == "count" else 0.0
             
             last_reset = state.attributes.get("last_reset")
             if last_reset:
@@ -174,13 +188,12 @@ class CounterspellSensor(RestoreEntity, SensorEntity):
                 self._update_activity(curr_state.state == "on")
         elif self._source_template:
             self._template = Template(self._source_template, self.hass)
-            self.async_on_remove(
-                async_track_template_result(
-                    self.hass,
-                    [TrackTemplate(self._template, None)],
-                    self._async_on_template_change,
-                )
+            info = async_track_template_result(
+                self.hass,
+                [TrackTemplate(self._template, None)],
+                self._async_on_template_change,
             )
+            self.async_on_remove(info.async_remove)
             # Initial state
             try:
                 self._update_activity(bool(self._template.async_render()))
@@ -252,7 +265,7 @@ class CounterspellSensor(RestoreEntity, SensorEntity):
                 # Add duration up to midnight if we really wanted to be precise, 
                 # but for simplicity we reset and start fresh.
                 pass
-            self._state = 0.0
+            self._state = 0 if self._measure_type == "count" else 0.0
             self._last_reset = now
             if self._active:
                 self._active_since = now
@@ -260,7 +273,7 @@ class CounterspellSensor(RestoreEntity, SensorEntity):
                     self._state = 1 # It's active, so it counts as 1 in the new period
 
     @property
-    def native_value(self) -> float:
+    def native_value(self) -> float | int:
         """Return the state of the sensor."""
         if self._active and self._measure_type == "duration" and self._active_since:
             # Return current state + duration since active

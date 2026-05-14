@@ -2,13 +2,42 @@
   "config": {
     "step": {
       "user": {
-        "title": "Configure Counterspell",
-        "description": "Choose a name and the condition to track.",
+        "title": "Select Source Type",
+        "description": "How do you want to track the activity?"
+      },
+      "binary_sensor": {
+        "title": "Select Binary Sensor",
         "data": {
+          "source_binary_sensor": "Binary Sensor"
+        }
+      },
+      "template": {
+        "title": "Define Template",
+        "data": {
+          "source_template": "Template",
           "name": "Name",
-          "source_binary_sensor": "Source Binary Sensor",
-          "source_template": "Source Template",
+          "device_id": "Device"
+        }
+      },
+      "periods": {
+        "title": "Select Periods",
+        "description": "Choose which periods you want to track.",
+        "data": {
           "periods": "Reset Periods"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Counterspell",
+        "data": {
+          "periods": "Reset Periods"
+        }
+      }
+    },
+    "menu": {
+      "user": {
+        "step_id": {
+          "binary_sensor": "Binary Sensor",
+          "template": "Template"
         }
       }
     },

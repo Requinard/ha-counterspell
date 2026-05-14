@@ -1,88 +1,141 @@
 """Test Counterspell config flow."""
 from unittest.mock import patch
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.core import HomeAssistant
 
 from custom_components.counterspell.const import DOMAIN
 
-async def test_flow_user_init(hass: HomeAssistant) -> None:
-    """Test the user initiated flow."""
+async def test_flow_binary_sensor(hass: HomeAssistant) -> None:
+    """Test the flow starting with binary sensor."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
+    assert result["type"] == data_entry_flow.FlowResultType.MENU
+    
+    # Select binary_sensor
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "binary_sensor"}
+    )
     assert result["type"] == data_entry_flow.FlowResultType.FORM
-    assert result["step_id"] == "user"
-
-    with patch(
-        "custom_components.counterspell.async_setup_entry",
-        return_value=True,
-    ) as mock_setup_entry:
+    assert result["step_id"] == "binary_sensor"
+    
+    # Configure binary sensor
+    hass.states.async_set("binary_sensor.test_motion", "off", {"friendly_name": "Test Motion"})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"source_binary_sensor": "binary_sensor.test_motion"}
+    )
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
+    assert result["step_id"] == "periods"
+    
+    # Configure periods
+    with patch("custom_components.counterspell.async_setup_entry", return_value=True):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"],
-            {
-                "name": "My Counter",
-                "source_binary_sensor": "binary_sensor.test",
-                "periods": ["daily", "total"],
-            },
+            result["flow_id"], {"periods": ["daily"]}
         )
         await hass.async_block_till_done()
-
+        
     assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
-    assert result["title"] == "My Counter"
-    assert result["data"] == {
-        "name": "My Counter",
-        "source_binary_sensor": "binary_sensor.test",
-        "periods": ["daily", "total"],
-    }
-    assert len(mock_setup_entry.mock_calls) == 1
+    assert result["title"] == "Test Motion"
+    assert result["data"]["name"] == "Test Motion"
+    assert result["data"]["source_binary_sensor"] == "binary_sensor.test_motion"
+    assert result["data"]["periods"] == ["daily"]
 
-async def test_flow_user_invalid_source(hass: HomeAssistant) -> None:
-    """Test the user initiated flow with invalid source (neither sensor nor template)."""
+async def test_flow_template(hass: HomeAssistant) -> None:
+    """Test the flow starting with template."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
     
+    # Select template
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        {
-            "name": "My Counter",
-            "periods": ["daily"],
-        },
+        result["flow_id"], {"next_step_id": "template"}
     )
-    
     assert result["type"] == data_entry_flow.FlowResultType.FORM
-    assert result["errors"] == {"base": "provide_source"}
+    assert result["step_id"] == "template"
+    
+    # Configure template
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {
+            "source_template": "{{ states('input_boolean.test') == 'on' }}",
+            "name": "My Template",
+        }
+    )
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
+    assert result["step_id"] == "periods"
+    
+    # Configure periods
+    with patch("custom_components.counterspell.async_setup_entry", return_value=True):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"periods": ["daily", "weekly"]}
+        )
+        await hass.async_block_till_done()
+        
+    assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
+    assert result["title"] == "My Template"
+    assert result["data"]["name"] == "My Template"
+    assert result["data"]["source_template"] == "{{ states('input_boolean.test') == 'on' }}"
+    assert result["data"]["periods"] == ["daily", "weekly"]
 
-async def test_flow_user_defaults(hass: HomeAssistant) -> None:
-    """Test the user initiated flow has correct defaults."""
-    from custom_components.counterspell.const import CONF_PERIODS, PERIODS
+async def test_reconfigure(hass: HomeAssistant) -> None:
+    """Test reconfiguration."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "name": "Old Name",
+            "source_binary_sensor": "binary_sensor.old",
+            "periods": ["total"],
+        },
+        entry_id="test_reconfigure",
+    )
+    entry.add_to_hass(hass)
+    
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, 
+        context={"source": config_entries.SOURCE_RECONFIGURE, "entry_id": entry.entry_id},
+    )
+    assert result["type"] == data_entry_flow.FlowResultType.FORM
+    assert result["step_id"] == "periods"
+    
+    # Update periods
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"periods": ["daily", "total"]}
+    )
+    await hass.async_block_till_done()
+    
+    assert result["type"] == data_entry_flow.FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data["periods"] == ["daily", "total"]
+
+async def test_flow_template_with_device(hass: HomeAssistant) -> None:
+    """Test the flow starting with template and selecting a device."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
+    
+    # Select template
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "template"}
+    )
+    
+    # Configure template with device
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {
+            "source_template": "{{ true }}",
+            "name": "Device Template",
+            "device_id": "test_device_id",
+        }
+    )
     assert result["type"] == data_entry_flow.FlowResultType.FORM
+    assert result["step_id"] == "periods"
     
-    # Check defaults in the schema
-    schema = result["data_schema"].schema
-    
-    periods_key = None
-    for key in schema:
-        if str(key) == CONF_PERIODS:
-            periods_key = key
-            break
-    
-    assert periods_key is not None
-    assert periods_key.default() == PERIODS
-    
-    # Check suggested value (for the UI)
-    suggested_value = None
-    if hasattr(periods_key, "description") and isinstance(periods_key.description, dict):
-        suggested_value = periods_key.description.get("suggested_value")
-    
-    assert suggested_value == PERIODS
-    
-    # Test that the schema applies the default
-    # Note: binary_sensor and template are optional in the schema but checked in the code
-    data = {"name": "Test"}
-    processed_data = result["data_schema"](data)
-    assert processed_data[CONF_PERIODS] == PERIODS
+    # Configure periods
+    with patch("custom_components.counterspell.async_setup_entry", return_value=True):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"periods": ["total"]}
+        )
+        await hass.async_block_till_done()
+        
+    assert result["type"] == data_entry_flow.FlowResultType.CREATE_ENTRY
+    assert result["data"]["device_id"] == "test_device_id"
