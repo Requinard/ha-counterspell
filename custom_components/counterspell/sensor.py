@@ -110,7 +110,23 @@ class CounterspellSensor(RestoreEntity, SensorEntity):
         self._source_binary_sensor = source_binary_sensor
         self._source_template = source_template
         
-        self._attr_name = f"{period.capitalize()} {measure_type.capitalize()}"
+        name_map = {
+            "count": {
+                PERIOD_DAILY: "Count Today",
+                PERIOD_WEEKLY: "Count This Week",
+                PERIOD_MONTHLY: "Count This Month",
+                PERIOD_YEARLY: "Count This Year",
+                PERIOD_TOTAL: "Total Count",
+            },
+            "duration": {
+                PERIOD_DAILY: "Active Duration Today",
+                PERIOD_WEEKLY: "Active Duration This Week",
+                PERIOD_MONTHLY: "Active Duration This Month",
+                PERIOD_YEARLY: "Active Duration This Year",
+                PERIOD_TOTAL: "Total Active Duration",
+            },
+        }
+        self._attr_name = name_map[measure_type][period]
         self._attr_unique_id = f"{entry.entry_id}_{period}_{measure_type}"
         self._attr_device_info = device_info or DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},

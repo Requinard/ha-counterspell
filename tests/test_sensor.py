@@ -33,14 +33,14 @@ async def test_sensors(hass: HomeAssistant, freezer) -> None:
 
     # Entities created: total count and total duration
     count_entity_id = "sensor.test_counter_total_count"
-    duration_entity_id = "sensor.test_counter_total_duration"
+    duration_entity_id = "sensor.test_counter_total_active_duration"
     
     assert float(hass.states.get(count_entity_id).state) == 0.0
     assert float(hass.states.get(duration_entity_id).state) == 0.0
     
     # Check friendly name
     assert hass.states.get(count_entity_id).attributes.get("friendly_name") == "Test Counter Total Count"
-    assert hass.states.get(duration_entity_id).attributes.get("friendly_name") == "Test Counter Total Duration"
+    assert hass.states.get(duration_entity_id).attributes.get("friendly_name") == "Test Counter Total Active Duration"
 
     # Check entity category
     ent_reg = er.async_get(hass)
@@ -124,7 +124,7 @@ async def test_period_reset(hass: HomeAssistant, freezer) -> None:
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
-    count_entity_id = "sensor.daily_counter_daily_count"
+    count_entity_id = "sensor.daily_counter_count_today"
     
     # Turn it on
     hass.states.async_set("binary_sensor.test_source", STATE_ON)
