@@ -1,0 +1,10 @@
+{
+  "domain": "counterspell",
+  "name": "Counterspell",
+  "codeowners": ["@requinard"],
+  "config_flow": true,
+  "documentation": "https://github.com/requinard/hass-counterspell",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/requinard/hass-counterspell/issues",
+  "version": "0.1.0"
+}

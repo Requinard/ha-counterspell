@@ -1,0 +1,31 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure Counterspell",
+        "description": "Choose a name and the condition to track.",
+        "data": {
+          "name": "Name",
+          "source_binary_sensor": "Source Binary Sensor",
+          "source_template": "Source Template",
+          "periods": "Reset Periods"
+        }
+      }
+    },
+    "error": {
+      "provide_source": "Please provide either a binary sensor or a template."
+    }
+  },
+  "selector": {
+    "periods": {
+      "options": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "yearly": "Yearly",
+        "total": "Total (No Reset)"
+      }
+    }
+  },
+  "title": "Counterspell"
+}
