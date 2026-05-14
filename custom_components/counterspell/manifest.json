@@ -3,8 +3,8 @@
   "name": "Counterspell",
   "codeowners": ["@requinard"],
   "config_flow": true,
-  "documentation": "https://github.com/requinard/hass-counterspell",
+  "documentation": "https://gitlab.com/Requinard/ha-counterspell/readme.md",
   "iot_class": "calculated",
-  "issue_tracker": "https://github.com/requinard/hass-counterspell/issues",
+  "issue_tracker": "https://gitlab.com/Requinard/ha-counterspell/issues",
   "version": "0.1.0"
 }
